@@ -1,42 +1,52 @@
+import board
+import microcontroller
+import time
+
 from kmk.kmk_keyboard import KMKKeyboard
 from kmk.keys import KC
 from kmk.scanners import DiodeOrientation
-from kmk.modules.encoder import RotaryEncoder
+from kmk.modules.encoder import EncoderHandler
+from kmk.extensions.media_keys import MediaKeys  # <-- HELYES IMPORT (extensions, nem modules)
 
 keyboard = KMKKeyboard()
 
-# ----------------------
-# GPIO kiosztás
-# ----------------------
-# gombok: GP1-jobb, GP2-le, GP3-bal, GP4-fel, GP6-del, GP9-mute
-keyboard.col_pins = [board.GP1, board.GP2, board.GP3, board.GP4, board.GP6, board.GP9]
-keyboard.row_pins = [board.GP0]  # 1 soros macropad
-keyboard.diode_orientation = DiodeOrientation.COL2ROW
+# Hozzáadjuk a MediaKeys kiterjesztést a billentyűzethez
+keyboard.extensions.append(MediaKeys())
 
-# ----------------------
-# Keymap
-# ----------------------
-keyboard.keymap = [
-    [KC_RGHT, KC_DOWN, KC_LEFT, KC_UP, KC_DEL, KC_MUTE]
+keyboard.col_pins = [
+    board.A2,
+    board.A1,
+    board.A0,
+    board.A3,
+    board.SCL,
+    board.SCK,
 ]
 
-# ----------------------
-# Rotary encoder
-# ----------------------
-encoder = RotaryEncoder(pin_num_a=board.GP11, pin_num_b=board.GP10)
+keyboard.row_pins = [board.TX]
+keyboard.diode_orientation = DiodeOrientation.COL2ROW
 
-@encoder.on_rotate
-def vol(rot):
-    if rot > 0:
-        keyboard.tap_key(KC.VOLU)
-    else:
-        keyboard.tap_key(KC.VOLD)
+keyboard.keymap = [
+    [KC.LEFT, KC.DOWN, KC.RIGHT, KC.UP, KC.ESC, KC.MUTE]
+]
 
-@encoder.on_press
-def mute():
-    keyboard.tap_key(KC.MUTE)  # GP9 már fizikai gomb, de lehet encoder switch is
+encoder_handler = EncoderHandler()
 
-keyboard.modules.append(encoder)
+encoder_handler.pins = (
+    (board.MISO, board.MOSI),
+)
 
-if __name__ == '__main__':
+# KC.VOLD = Volume Down (Hangerő le), KC.VOLU = Volume Up (Hangerő fel)
+encoder_handler.map = [
+    ((KC.VOLD, KC.VOLU),),
+]
+
+keyboard.modules.append(encoder_handler)
+
+try:
     keyboard.go()
+
+except Exception as e:
+    print("HIBA:", e)
+    time.sleep(3)
+    microcontroller.reset()
+
